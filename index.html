@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entropy Sliders</title>
+</head>
+<body>
+
+    <style>
+        body{
+            background: rgb(146, 123, 108);
+            text-align: center;
+            font-family: Roboto !important;
+            font-weight: 300 !important;
+            overflow: hidden;
+        }
+
+        .slider-box{
+            background: rgba(10,10,10,0.3);
+            box-shadow: black 2px 2px 10px -5px;
+            display: inline-block;
+            height: 800px;
+            width: 50px;
+            margin: 0.5em;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .slider{
+            transform: rotate(-90deg) translate(-450px,-275px);
+            width:600px;
+            opacity: 0.5;
+        }
+
+        .slider-num{
+            width: 40px;
+            overflow: hidden;
+            text-align: center;
+            margin: auto;
+            box-shadow: whitesmoke 0px 0px 10px -3px;
+            background: rgba(255,255,255,0.2);
+            padding: 5px;
+        }
+
+
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            background: linear-gradient(to right, rgb(1, 1, 60), rgb(50,50,150));
+            border-radius: 0.5rem;
+            height: 2rem;  
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; /* Override default look */
+            appearance: none;
+            /* margin-top: -12px; Centers thumb on the track */
+
+            /*custom styles*/
+            background-color: rgb(224, 248, 255);
+            height: 2rem;
+            width: 1.5rem;
+            border-radius: 2px;
+            transform: scale(1.0,1.5);
+        }
+
+
+
+    </style>
+
+    <h1 id="entropy"></h1>
+
+    <div id="sliders">
+    </div>
+
+    <script>
+
+        function getParameterByName(name, url = window.location.href) {
+            name = name.replace(/[\[\]]/g, '\\$&');
+            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+                results = regex.exec(url);
+            if (!results) return null;
+            if (!results[2]) return '';
+            return decodeURIComponent(results[2].replace(/\+/g, ' '));
+        }
+
+
+        function range(start, end, step){
+            if (step == undefined){
+                step = 1;
+            }
+
+            let l = [];
+            for(let i=start; i<end; i+=step){
+                l.push(i);
+            }
+            return l;
+        }
+
+        function round(num, n=1000){
+            return Math.round((num + Number.EPSILON) * n) / n
+        }
+
+        function getSliderValues(){
+            return range(1, n_sliders+1).map(id => parseFloat(document.querySelector(`#slider-${id}`).value));
+        }
+
+        function setSliderValue(id,val){
+            document.querySelector(`#slider-num-${id}`).innerHTML = round(val,100);
+            document.querySelector(`#slider-${id}`).value = val;
+        }
+
+        function normalize(vals, moved){
+            let n = vals.length;
+            let newVals = [];
+
+            let total = vals.reduce((acc,cur) => acc+cur, 0);
+
+            let scalar = (1 - vals[moved-1]) / (total - vals[moved-1] + 1e-8);
+
+            for(let i=1; i<=n; i++){
+                if(i == moved){
+                    newVals.push(vals[i-1]);
+                }
+                else{
+                    newVals.push(vals[i-1]*scalar);
+                }
+            }
+
+            return newVals;
+        }
+
+        function entropy(vals){
+            vals = vals.filter(x => x!=0)
+            return vals.reduce((a,x) => -Math.log2(x)*x + a, 0);
+        }
+
+        function setEntropy(){
+            let ent = entropy(getSliderValues());
+            let prob = round(Math.pow(2,-ent))
+            document.querySelector("#entropy").innerText = `Entropy: ${round(ent)}` + ` bits` + ` = -log2(${prob})`;
+        }
+
+        function adjustSliderValues(moved){
+            let newVals = normalize(getSliderValues(), moved);
+            for(let i=1; i<=n_sliders; i++){
+                setSliderValue(i, newVals[i-1]);
+            }
+        }
+
+
+        function makeListener(id, n) {
+
+            let listener = function(e) {
+                let slider = document.querySelector(`#slider-${id}`);
+                let sliderNum = document.querySelector(`#slider-num-${id}`);
+
+                adjustSliderValues(id);
+                setEntropy();
+            };
+
+            return listener;
+        }
+
+        function addSlider(id, n){
+            let container = document.querySelector("#sliders");
+
+            // let id = Array.from(document.querySelectorAll(".slider")).length + 1;
+
+            let slider = `
+                <div class="slider-box">
+                    <input id="slider-${id}" class="slider" type="range" min="0.0001" max="1.0" value="${1/n}" step="0.0001"/>
+                    <div id="slider-num-${id}" class="slider-num">0.0</div>
+                </div>
+            `;
+
+            container.innerHTML += slider;
+        }
+
+
+        let n_sliders = parseInt(getParameterByName("n_sliders"));
+        if(n_sliders == undefined){
+            n_sliders = 5;
+        }
+        for(let i=1; i<=n_sliders; i++){
+            addSlider(i, n_sliders);
+        }
+        adjustSliderValues(1);
+
+        for(let i=1; i<=n_sliders; i++){
+            document.querySelector(`#slider-${i}`).addEventListener("input", makeListener(i, n_sliders));
+        }
+
+        setEntropy();
+
+
+    </script>
+</body>
+</html>
